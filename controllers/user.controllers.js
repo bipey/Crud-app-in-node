@@ -2,15 +2,24 @@ import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
 
 
+
 //create operation
 const uploadData= async(req,res)=>{
-    const{email, fullName, password}=req.body;
+    const{email, fullName, password, confirmPassword}=req.body;
+    
     if((!email||!fullName||!password)===""){
         return res.status(400).json("Field cant be empty")
     }
-    const checkEmail= User.findOne({email:email})
+    const checkEmail=await User.findOne({email:email.toLowerCase()})
     if(checkEmail){
-        return res.status(300).json("Email already exists")
+        console.log(checkEmail)
+        return res.status(400).json("Email already exists")
+    }
+    if(password.length<8){
+        return res.status(400).json("Password should be of minimum 8 characters")
+    }
+    if(password!=confirmPassword){
+        return res.status(400).json("Passwords doesnt match")
     }
     const userData=await User.create({
         email:email.toLowerCase(),
@@ -72,7 +81,8 @@ const uploadData= async(req,res)=>{
            return res.status(404).json("No user found with that email");
     }
 
-        console.log(readUser);
+        // console.log(readUser);
+        // console.log(User.countDocuments())
 
         return res.status(200).json(readUser); // Return the user data
     } catch (error) {

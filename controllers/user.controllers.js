@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
-
+import  jwt  from "jsonwebtoken";
+import cookieParser from "cookie-parser";
 
 
 //create operation
@@ -61,6 +62,8 @@ const uploadData= async(req,res)=>{
     }
  }
  
+
+
  
  //read operation
  const readData = async (req, res) => {
@@ -90,6 +93,10 @@ const uploadData= async(req,res)=>{
         return res.status(500).json("Server error");
     }
 };
+
+
+
+
    //delete operation
    
    const deleteData= async(req,res)=>{
@@ -110,5 +117,39 @@ const uploadData= async(req,res)=>{
   }
    }
 
+
+
+
+// login function
+
+const userLogin= async(req,res)=>{
+    const {email, password}=req.body
+    const isUserRegistered= await User.findOne({email:email})
+    if(!isUserRegistered){
+        return res.status(401).json("User is not registered")
+    }
+    const checkPassword= await isUserRegistered.comparePassword(password)
+    if(!checkPassword){
+        return res.status(401).json("Wrong password")
+    }
+    const{accessToken,refreshToken}=await isUserRegistered.generateAccesaRefreshToken();
+    // console.log(accessToken,"\n", refreshToken)
+    const cookieOptions={
+    httpOnly:true, //the cookie cant be ready by client
+    secure:true
+}
+
+     res.status(200)
+    .cookie("Access Token",accessToken,cookieOptions)  //setting the cookies
+    .cookie("Refresh Token",refreshToken,cookieOptions)
+    .json("Welcome user")
+    const getCookies= req.cookies
+    // console.log(getCookies)    //getting the cookies
+    // console.log(getCookies['Refresh Token'])
+}
+
+
+
+
  //exporting the functions
-export {uploadData, updateData, readData, deleteData}
+export {uploadData, updateData, readData, deleteData, userLogin}

@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
 import { validate } from "email-validator";
 import bcrypt from "bcrypt";
-
+import jwt from "jsonwebtoken";
+import'dotenv/config';
 const userSchema= new mongoose.Schema({
     fullName:{
         type:String,
@@ -25,6 +26,9 @@ const userSchema= new mongoose.Schema({
     confirmPassword:{
         type:String,
      
+    },
+    refreshToken:{
+        type:String
     }
 },
 {timestamps:true})
@@ -71,4 +75,39 @@ userSchema.post("save",async function(){
 userSchema.post("updateOne",async function(){
     console.log("Db updated")
 })
+
+
+
+
+
+//methods to compare password
+userSchema.methods.comparePassword=async function (password) {
+    return await bcrypt.compare(password, this.password)
+}
+
+
+//methods to generate access and refresh token
+userSchema.methods.generateAccesaRefreshToken=async function (){
+    // console.log(process.env.ACCESS_TOKEN_SECRET)
+   const accessToken= jwt.sign({
+        _id:this._id,
+        email:this.email
+    },
+process.env.ACCESS_TOKEN_SECRET,
+{expiresIn:process.env.ACCESS_TOKEN_EXPIRY})
+    const refreshToken=jwt.sign({
+        _id:this._id,
+        email:this.email
+    },
+process.env.REFRESH_TOKEN_SECRET,
+{expiresIn:process.env.REFRESH_TOKEN_EXPIRY})
+
+this.refreshToken=refreshToken
+await this.save()
+return {accessToken,refreshToken}
+}
+
+
+
+
 export const User= mongoose.model("User",userSchema)

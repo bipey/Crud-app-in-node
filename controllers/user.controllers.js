@@ -4,6 +4,17 @@ import  jwt  from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 
 
+//generate access and refresh token
+const generateAccessRefreshToken=async(userId)=>{
+    const LoggedUser=await User.findById(userId)
+    const accessToken=await LoggedUser.generateAccessToken()
+    const refreshToken=await LoggedUser.generateRefreshToken()
+    LoggedUser.refreshToken=refreshToken
+await LoggedUser.save()
+return {accessToken,refreshToken}
+}
+
+
 //create operation
 const uploadData= async(req,res)=>{
     const{email, fullName, password, confirmPassword}=req.body;
@@ -39,18 +50,19 @@ const uploadData= async(req,res)=>{
  const updateData=async(req,res)=>{
     const {email, updatedName}=req.body;
     console.log(email,updatedName)
+   
     try {
         const updateUser= await User.findOneAndUpdate({ //can use updateOne, updateMany, findAndUpdate, findByIdAndUpdate
             email:email,
         },
     {
         $set:{
-            fullName:updatedName
+            fullName: updatedName
         },
         
     },
     {
-        new:true
+        ignoreUndefined: false
     }
         )
     if(!updateUser){
@@ -132,7 +144,7 @@ const userLogin= async(req,res)=>{
     if(!checkPassword){
         return res.status(401).json("Wrong password")
     }
-    const{accessToken,refreshToken}=await isUserRegistered.generateAccesaRefreshToken();
+    const{accessToken,refreshToken}=await generateAccessRefreshToken(isUserRegistered._id);
     // console.log(accessToken,"\n", refreshToken)
     const cookieOptions={
     httpOnly:true, //the cookie cant be ready by client
@@ -140,16 +152,86 @@ const userLogin= async(req,res)=>{
 }
 
      res.status(200)
-    .cookie("Access Token",accessToken,cookieOptions)  //setting the cookies
-    .cookie("Refresh Token",refreshToken,cookieOptions)
+    .cookie("AccessToken",accessToken,cookieOptions)  //setting the cookies
+    .cookie("RefreshToken",refreshToken,cookieOptions)
     .json("Welcome user")
     const getCookies= req.cookies
     // console.log(getCookies)    //getting the cookies
     // console.log(getCookies['Refresh Token'])
 }
+const logoutUser= async (req,res)=>{
+    // console.log(req.loggedInUser._id)
+    if (!req.loggedInUser || !req.loggedInUser._id) {
+        return res.status(401).json("User not authenticated");
+    }
+   const loggedInUser=req.loggedInUser
+
+   loggedInUser.refreshToken = undefined;
+   await loggedInUser.save();
+
+    const cookieOptions={
+        httpOnly:true,
+        secure:true
+    }
+    return res.status(201)
+    .clearCookie("AccessToken",cookieOptions)
+    .clearCookie("RefreshToken",cookieOptions)
+    .json("User Logged Out")
+}
 
 
+//Refreshing access Token
+const refreshAccessToken = async (req, res) => {
+    try {
+        const incomingRefreshToken = req.cookies?.RefreshToken || req.body.refreshToken;
+        
+        if (!incomingRefreshToken) {
+            return res.status(401).json("Unauthorized request");
+        }
+
+        // Verify the incoming refresh token
+        const decodedRefreshToken = await jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+        const user = await User.findById(decodedRefreshToken._id);
+        
+        if (!user) {
+            return res.status(401).json("Invalid token");
+        }
+
+        // Log tokens for comparison
+        // console.log("Incoming refresh token:", incomingRefreshToken);
+        // console.log("Stored refresh token:", user.refreshToken);
+
+        // Ensure the incoming token matches the one in the database
+        if (incomingRefreshToken !== user.refreshToken) {
+            return res.status(401).json("Refresh token expired or used");
+        }
+
+        // Generate new tokens
+        const { accessToken, refreshToken:newRefreshToken } = await generateAccessRefreshToken(user._id);
+        // console.log("New refresh token:", newRefreshToken);
+        // console.log(accessToken)
+
+        // Update user's refresh token and save
+        // user.refreshToken = newRefreshToken;
+        // await user.save();
+
+        // Set cookies
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,  // Set to false for local testing if not using HTTPS
+        };
+
+        res.status(201)
+            .cookie("AccessToken", accessToken, cookieOptions)
+            .cookie("RefreshToken", newRefreshToken, cookieOptions)
+            .json("Token refreshed");
+
+    } catch (error) {
+        console.log("Error occurred while decoding the tokens:", error.message);
+        return res.status(500).json("Internal Server Error");
+    }
+};
 
 
  //exporting the functions
-export {uploadData, updateData, readData, deleteData, userLogin}
+export {uploadData, updateData, readData, deleteData, userLogin, logoutUser, refreshAccessToken}

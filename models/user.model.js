@@ -29,6 +29,7 @@ const userSchema= new mongoose.Schema({
     },
     refreshToken:{
         type:String
+        
     }
 },
 {timestamps:true})
@@ -70,7 +71,10 @@ userSchema.pre("save",async function(next){
 
 //post hook occur after operation in db
 userSchema.post("save",async function(){
-    console.log("Data saved",this)
+    const savedData= this.toObject();
+    delete savedData.password;
+    delete savedData.refreshToken;
+    console.log("Data saved", savedData)
 })
 userSchema.post("updateOne",async function(){
     console.log("Db updated")
@@ -87,24 +91,26 @@ userSchema.methods.comparePassword=async function (password) {
 
 
 //methods to generate access and refresh token
-userSchema.methods.generateAccesaRefreshToken=async function (){
+userSchema.methods.generateAccessToken=async function (){
     // console.log(process.env.ACCESS_TOKEN_SECRET)
-   const accessToken= jwt.sign({
+   return jwt.sign({
         _id:this._id,
         email:this.email
     },
 process.env.ACCESS_TOKEN_SECRET,
 {expiresIn:process.env.ACCESS_TOKEN_EXPIRY})
-    const refreshToken=jwt.sign({
+    
+}
+
+
+userSchema.methods.generateRefreshToken=async function() {
+    return jwt.sign({
         _id:this._id,
         email:this.email
     },
 process.env.REFRESH_TOKEN_SECRET,
 {expiresIn:process.env.REFRESH_TOKEN_EXPIRY})
-
-this.refreshToken=refreshToken
-await this.save()
-return {accessToken,refreshToken}
+    
 }
 
 

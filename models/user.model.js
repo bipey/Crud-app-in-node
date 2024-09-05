@@ -27,10 +27,6 @@ const userSchema= new mongoose.Schema({
         type:String,
      
     },
-    refreshToken:{
-        type:String
-        
-    }
 },
 {timestamps:true})
 
@@ -87,30 +83,6 @@ userSchema.post("updateOne",async function(){
 //methods to compare password
 userSchema.methods.comparePassword=async function (password) {
     return await bcrypt.compare(password, this.password)
-}
-
-
-//methods to generate access and refresh token
-userSchema.methods.generateAccessToken=async function (){
-    // console.log(process.env.ACCESS_TOKEN_SECRET)
-   return jwt.sign({
-        _id:this._id,
-        email:this.email
-    },
-process.env.ACCESS_TOKEN_SECRET,
-{expiresIn:process.env.ACCESS_TOKEN_EXPIRY})
-    
-}
-
-
-userSchema.methods.generateRefreshToken=async function() {
-    return jwt.sign({
-        _id:this._id,
-        email:this.email
-    },
-process.env.REFRESH_TOKEN_SECRET,
-{expiresIn:process.env.REFRESH_TOKEN_EXPIRY})
-    
 }
 
 

@@ -1,17 +1,5 @@
 import { User } from "../models/user.model.js";
-import  jwt  from "jsonwebtoken";
-import { mailer } from "../utils/mailer.utils.js";
-import crypto from "crypto"
-
-//generate access and refresh token
-const generateAccessRefreshToken=async(userId)=>{
-    const LoggedUser=await User.findById(userId)
-    const accessToken=await LoggedUser.generateAccessToken()
-    const refreshToken=await LoggedUser.generateRefreshToken()
-    LoggedUser.refreshToken=refreshToken
-await LoggedUser.save()
-return {accessToken,refreshToken}
-}
+import {uploadImageOnCloudiary} from "../utils/cloudinary_upload.js"
 
 
 //create operation
@@ -32,10 +20,22 @@ const uploadData= async(req,res)=>{
     if(password!=confirmPassword){
         return res.status(400).json("Passwords doesnt match")
     }
+    if (!req.file  ) {
+        return res.status(400).json("Avatar image is required");
+    }
+    // console.log(req.file.avatar.filename)
+    // const avatarLocalPath = req.files.avatar?.[0]?.path;
+    // if(!avatarLocalPath){
+    //     res.send({status:401, message:"Avatar image is required"})
+    // }
+    const avatarLocalPath=`./public/images/${req.file.filename}`
+    const avatar= await uploadImageOnCloudiary(avatarLocalPath)
+
     const userData=await User.create({
         email:email.toLowerCase(),
         fullName,
-        password
+        password,
+        avatar:avatar.url
     })
     if(!userData){
         return res.status(400).json("Something went wrong while sending data to database")

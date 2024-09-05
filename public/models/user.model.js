@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import { validate } from "email-validator";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import'dotenv/config';
 const userSchema= new mongoose.Schema({
     fullName:{
@@ -17,6 +16,11 @@ const userSchema= new mongoose.Schema({
             validator: validate, // Use the validator library's isEmail function
             message: "Invalid email format",
         },
+        
+    },
+    avatar:{
+        type:String,
+        required:true
     },
     password:{
         type:String,
